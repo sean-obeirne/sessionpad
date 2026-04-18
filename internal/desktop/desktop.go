@@ -59,29 +59,23 @@ func NewExecutor() *Executor {
 				Enable:      []string{"i3-msg", "workspace", "2:embedded"},
 				Description: "switch to embedded workspace",
 			},
-			"toggle:tmux": {
-				Enable:      []string{"i3-msg", "exec", "alacritty --class sessionpad-tmux -e tmux new-session -A -s sessionpad"},
-				Disable:     []string{"tmux", "kill-session", "-t", "sessionpad"},
-				Detect:      []string{"tmux", "has-session", "-t", "sessionpad"},
-				Description: "open tmux session",
+			"toggle:terminal": {
+				Enable:      []string{"i3-msg", "exec", "alacritty"},
+				Disable:     []string{"i3-msg", `[class="Alacritty"] kill`},
+				Detect:      []string{"pgrep", "-x", "alacritty"},
+				Description: "open terminal",
 			},
-			"toggle:logs": {
-				Enable:      []string{"i3-msg", "exec", "alacritty --class sessionpad-logs -e journalctl -f"},
-				Disable:     []string{"i3-msg", `[class="sessionpad-logs"] kill`},
-				Detect:      []string{"pgrep", "-f", "journalctl -f"},
-				Description: "open log viewer",
+			"toggle:firefox": {
+				Enable:      []string{"i3-msg", "exec", "firefox"},
+				Disable:     []string{"i3-msg", `[class="firefox"] kill`},
+				Detect:      []string{"pgrep", "-x", "firefox"},
+				Description: "open Firefox",
 			},
 			"toggle:runescape": {
 				Enable:      []string{"i3-msg", "exec", "flatpak run com.adamcake.Bolt"},
 				Disable:     []string{"i3-msg", `[class="Bolt"] kill; [class="RuneLite"] kill`},
 				Detect:      []string{"pgrep", "-f", "runelite|com.adamcake.Bolt"},
 				Description: "launch RuneScape",
-			},
-			"toggle:music": {
-				Enable:      []string{"i3-msg", "exec", "spotify"},
-				Disable:     []string{"i3-msg", `[class="Spotify"] kill`},
-				Detect:      []string{"pgrep", "-x", "spotify"},
-				Description: "launch music player",
 			},
 		},
 	}

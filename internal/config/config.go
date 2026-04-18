@@ -30,10 +30,10 @@ var DefaultButtonMap = map[string]ButtonAction{
 	"BTN_3": {Type: Toggle, Name: "work"},
 	"BTN_4": {Type: Toggle, Name: "embedded"},
 	// Row 2: toggles
-	"BTN_5": {Type: Toggle, Name: "tmux"},
-	"BTN_6": {Type: Toggle, Name: "logs"},
+	"BTN_5": {Type: Toggle, Name: "firefox"},
+	"BTN_6": {Type: Toggle, Name: "code"},
 	"BTN_7": {Type: Toggle, Name: "runescape"},
-	"BTN_8": {Type: Toggle, Name: "music"},
+	"BTN_8": {Type: Toggle, Name: "terminal"},
 	// Row 3: toggles + apply
 	"BTN_9":  {Type: Toggle, Name: "browser"},
 	"BTN_10": {Type: Toggle, Name: "extra1"},
@@ -46,7 +46,7 @@ var DefaultButtonMap = map[string]ButtonAction{
 // This determines how toggles are displayed in notifications.
 var GridLayout = [][]string{
 	{"embedded", "work", "nvim", "code"},
-	{"music", "runescape", "logs", "tmux"},
+	{"terminal", "runescape", "code", "firefox"},
 	{"", "extra2", "extra1", "browser"},
 }
 

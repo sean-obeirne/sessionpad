@@ -261,9 +261,10 @@ func handlePress(
 			notifier.Close()
 			interaction.reset()
 		} else {
-			// No notification on screen — show current state.
+			// No notification on screen — show current state and start interaction.
 			log.Println("dismiss: showing current state")
 			syncWithReality(mgr, exec)
+			interaction.touch()
 			notifyPending(mgr, buttonMap, notifier)
 		}
 	}
