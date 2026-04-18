@@ -28,6 +28,9 @@ type Command struct {
 	// Disable is run when the feature is turned off or deselected.
 	// May be nil if no cleanup is needed.
 	Disable []string
+	// Detect is run to check if the feature is currently active.
+	// Exit code 0 means running. May be nil (always considered off).
+	Detect []string
 	// Description for logging.
 	Description string
 }
@@ -37,11 +40,15 @@ func NewExecutor() *Executor {
 	return &Executor{
 		Commands: map[string]Command{
 			"toggle:nvim": {
-				Enable:      []string{"i3-msg", "exec", "alacritty -e nvim"},
+				Enable:      []string{"i3-msg", "exec", "alacritty --class sessionpad-nvim -e nvim"},
+				Disable:     []string{"i3-msg", `[class="sessionpad-nvim"] kill`},
+				Detect:      []string{"pgrep", "-x", "nvim"},
 				Description: "open neovim in terminal",
 			},
 			"toggle:code": {
 				Enable:      []string{"i3-msg", "exec", "code"},
+				Disable:     []string{"pkill", "-o", "-x", "code"},
+				Detect:      []string{"pgrep", "-x", "code"},
 				Description: "open VS Code",
 			},
 			"toggle:work": {
@@ -53,19 +60,27 @@ func NewExecutor() *Executor {
 				Description: "switch to embedded workspace",
 			},
 			"toggle:tmux": {
-				Enable:      []string{"i3-msg", "exec", "alacritty -e tmux new-session -A -s sessionpad"},
+				Enable:      []string{"i3-msg", "exec", "alacritty --class sessionpad-tmux -e tmux new-session -A -s sessionpad"},
+				Disable:     []string{"tmux", "kill-session", "-t", "sessionpad"},
+				Detect:      []string{"tmux", "has-session", "-t", "sessionpad"},
 				Description: "open tmux session",
 			},
 			"toggle:logs": {
-				Enable:      []string{"i3-msg", "exec", "alacritty -e journalctl -f"},
+				Enable:      []string{"i3-msg", "exec", "alacritty --class sessionpad-logs -e journalctl -f"},
+				Disable:     []string{"i3-msg", `[class="sessionpad-logs"] kill`},
+				Detect:      []string{"pgrep", "-f", "journalctl -f"},
 				Description: "open log viewer",
 			},
 			"toggle:runescape": {
 				Enable:      []string{"i3-msg", "exec", "flatpak run com.jagex.Launcher"},
+				Disable:     []string{"pkill", "-f", "com.jagex.Launcher"},
+				Detect:      []string{"pgrep", "-f", "com.jagex.Launcher"},
 				Description: "launch RuneScape",
 			},
 			"toggle:music": {
 				Enable:      []string{"i3-msg", "exec", "spotify"},
+				Disable:     []string{"i3-msg", `[class="Spotify"] kill`},
+				Detect:      []string{"pgrep", "-x", "spotify"},
 				Description: "launch music player",
 			},
 		},
@@ -142,6 +157,27 @@ func (e *Executor) Apply(prev, next state.SessionConfig) Result {
 	}
 
 	return result
+}
+
+// DetectRunning probes all toggle commands and returns a SessionConfig
+// with toggles set to true for any currently running application.
+func (e *Executor) DetectRunning() state.SessionConfig {
+	cfg := state.NewSessionConfig()
+	for key, cmd := range e.Commands {
+		if cmd.Detect == nil {
+			continue
+		}
+		if !strings.HasPrefix(key, "toggle:") {
+			continue
+		}
+		name := strings.TrimPrefix(key, "toggle:")
+		probe := exec.Command(cmd.Detect[0], cmd.Detect[1:]...)
+		if err := probe.Run(); err == nil {
+			log.Printf("detect: %s is running", name)
+			cfg.Toggles[name] = true
+		}
+	}
+	return cfg
 }
 
 func run(args []string) error {

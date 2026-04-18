@@ -132,7 +132,11 @@ func handleEvent(
 	switch evt.Type {
 	case protocol.EventReady:
 		log.Println("Pico is ready")
-		notifier.Notify("sessionpad", "ready")
+		detected := exec.DetectRunning()
+		mgr.Pending = detected.Clone()
+		mgr.Applied = detected.Clone()
+		log.Printf("detected running: %s", detected.Summary())
+		notifyPending(mgr, buttonMap, notifier)
 
 	case protocol.EventPong:
 		if verbose {
