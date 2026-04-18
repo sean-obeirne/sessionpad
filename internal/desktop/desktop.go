@@ -36,19 +36,19 @@ type Command struct {
 func NewExecutor() *Executor {
 	return &Executor{
 		Commands: map[string]Command{
-			"editor:nvim": {
+			"toggle:nvim": {
 				Enable:      []string{"i3-msg", "exec", "alacritty -e nvim"},
 				Description: "open neovim in terminal",
 			},
-			"editor:code": {
+			"toggle:code": {
 				Enable:      []string{"i3-msg", "exec", "code"},
 				Description: "open VS Code",
 			},
-			"context:work": {
+			"toggle:work": {
 				Enable:      []string{"i3-msg", "workspace", "1:work"},
 				Description: "switch to work workspace",
 			},
-			"context:embedded": {
+			"toggle:embedded": {
 				Enable:      []string{"i3-msg", "workspace", "2:embedded"},
 				Description: "switch to embedded workspace",
 			},
@@ -103,50 +103,18 @@ func (r Result) Summary() string {
 func (e *Executor) Apply(prev, next state.SessionConfig) Result {
 	var result Result
 
-	// Handle exclusive selections.
-	for group, newVal := range next.Selections {
-		oldVal := prev.Selections[group]
-		if newVal == oldVal {
-			continue // No change in this group.
-		}
-
-		// Disable old value if there was one and we have a disable command.
-		if oldVal != "" {
-			key := group + ":" + oldVal
-			if cmd, ok := e.Commands[key]; ok && cmd.Disable != nil {
-				if err := run(cmd.Disable); err != nil {
-					result.Errors = append(result.Errors, fmt.Sprintf("disable %s: %v", key, err))
-				} else {
-					result.Executed = append(result.Executed, "disable "+cmd.Description)
-				}
-			}
-		}
-
-		// Enable new value.
-		key := group + ":" + newVal
-		if cmd, ok := e.Commands[key]; ok {
-			if err := run(cmd.Enable); err != nil {
-				result.Errors = append(result.Errors, fmt.Sprintf("enable %s: %v", key, err))
-			} else {
-				result.Executed = append(result.Executed, cmd.Description)
-			}
-		} else {
-			log.Printf("desktop: no command for %s", key)
-		}
-	}
-
 	// Handle toggles.
-	allExtras := make(map[string]bool)
-	for k := range prev.Extras {
-		allExtras[k] = true
+	allToggles := make(map[string]bool)
+	for k := range prev.Toggles {
+		allToggles[k] = true
 	}
-	for k := range next.Extras {
-		allExtras[k] = true
+	for k := range next.Toggles {
+		allToggles[k] = true
 	}
 
-	for name := range allExtras {
-		wasOn := prev.Extras[name]
-		nowOn := next.Extras[name]
+	for name := range allToggles {
+		wasOn := prev.Toggles[name]
+		nowOn := next.Toggles[name]
 		if wasOn == nowOn {
 			continue
 		}

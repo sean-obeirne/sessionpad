@@ -42,13 +42,10 @@ func NewEngine() *Engine {
 			{
 				Name: "runescape-secondary-monitor",
 				Eval: func(prev, next state.SessionConfig) *ActionHint {
-					// Example future rule: if runescape is enabled and
-					// we have a coding editor, suggest placing RS on
-					// a secondary workspace.
-					if !next.Extras["runescape"] {
+					if !next.Toggles["runescape"] {
 						return nil
 					}
-					if next.Selections["editor"] != "" {
+					if next.Toggles["code"] || next.Toggles["nvim"] {
 						return &ActionHint{
 							Description:     "runescape with editor active — consider workspace 3",
 							TargetWorkspace: "3:games",

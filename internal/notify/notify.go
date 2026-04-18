@@ -34,6 +34,7 @@ func (n *NotifySend) Notify(title, body string) error {
 		"--urgency", n.Urgency,
 		"--expire-time", fmt.Sprintf("%d", n.ExpireMs),
 		"--app-name", "sessionpad",
+		"--hint", "string:x-dunst-stack-tag:sessionpad",
 		title,
 	}
 	if body != "" {

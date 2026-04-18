@@ -6,9 +6,11 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"log"
 	"os"
 	"os/signal"
+	"sort"
 	"strings"
 	"sync"
 	"syscall"
@@ -34,7 +36,6 @@ func main() {
 
 	// --- Wire up components ---
 	buttonMap := config.DefaultButtonMap
-	requiredGroups := []string{"editor", "context"}
 
 	mgr := state.NewManager()
 	exec := desktop.NewExecutor()
@@ -89,7 +90,7 @@ func main() {
 				}
 			}
 
-			handleEvent(evt, buttonMap, requiredGroups, mgr, exec, ruleEngine, notifier, *verbose)
+			handleEvent(evt, buttonMap, mgr, exec, ruleEngine, notifier, *verbose)
 		}
 	}
 }
@@ -123,7 +124,6 @@ func (d *debouncer) allow(button string) bool {
 func handleEvent(
 	evt protocol.Event,
 	buttonMap map[string]config.ButtonAction,
-	requiredGroups []string,
 	mgr *state.Manager,
 	exec *desktop.Executor,
 	ruleEngine *rules.Engine,
@@ -152,7 +152,7 @@ func handleEvent(
 		}
 
 	case protocol.EventPress:
-		handlePress(evt.Button, buttonMap, requiredGroups, mgr, exec, ruleEngine, notifier, verbose)
+		handlePress(evt.Button, buttonMap, mgr, exec, ruleEngine, notifier, verbose)
 
 	case protocol.EventUnknown:
 		log.Printf("unknown event: %q", evt.Raw)
@@ -162,7 +162,6 @@ func handleEvent(
 func handlePress(
 	button string,
 	buttonMap map[string]config.ButtonAction,
-	requiredGroups []string,
 	mgr *state.Manager,
 	exec *desktop.Executor,
 	ruleEngine *rules.Engine,
@@ -176,24 +175,17 @@ func handlePress(
 	}
 
 	switch action.Type {
-	case config.Exclusive:
-		old := mgr.Pending.Selections[action.Group]
-		mgr.Pending.SetSelection(action.Group, action.Value)
-		log.Printf("pending %s: %s -> %s", action.Group, old, action.Value)
-		notifyPending(mgr, notifier)
-
 	case config.Toggle:
-		nowOn := mgr.Pending.ToggleExtra(action.Name)
+		nowOn := mgr.Pending.Toggle(action.Name)
 		log.Printf("pending %s: %v", action.Name, nowOn)
-		notifyPending(mgr, notifier)
+		notifyPending(mgr, buttonMap, notifier)
 
 	case config.Apply:
-		handleApply(requiredGroups, mgr, exec, ruleEngine, notifier, verbose)
+		handleApply(mgr, exec, ruleEngine, notifier, verbose)
 	}
 }
 
 func handleApply(
-	requiredGroups []string,
 	mgr *state.Manager,
 	exec *desktop.Executor,
 	ruleEngine *rules.Engine,
@@ -201,15 +193,6 @@ func handleApply(
 	verbose bool,
 ) {
 	log.Println("apply requested")
-
-	// Validate.
-	problems := mgr.Pending.Validate(requiredGroups)
-	if len(problems) > 0 {
-		msg := strings.Join(problems, ", ")
-		log.Printf("validation failed: %v", problems)
-		notifier.Notify("sessionpad", "invalid: "+msg)
-		return
-	}
 
 	// Check if anything changed.
 	if mgr.Pending.Equal(mgr.Applied) {
@@ -242,8 +225,43 @@ func handleApply(
 	}
 }
 
-func notifyPending(mgr *state.Manager, notifier notify.Notifier) {
-	if err := notifier.Notify("pending", mgr.Pending.Summary()); err != nil {
+func notifyPending(mgr *state.Manager, buttonMap map[string]config.ButtonAction, notifier notify.Notifier) {
+	body := buildStateGrid(mgr.Pending, buttonMap)
+	if err := notifier.Notify("sessionpad", body); err != nil {
 		log.Printf("notification error: %v", err)
 	}
+}
+
+func buildStateGrid(cfg state.SessionConfig, buttonMap map[string]config.ButtonAction) string {
+	var b strings.Builder
+	b.WriteString("<span font_family='monospace' font_size='large'>")
+
+	// All toggles in a grid
+	toggles := config.ToggleNames(buttonMap)
+	sort.Strings(toggles)
+
+	maxLen := 0
+	for _, name := range toggles {
+		if len(name) > maxLen {
+			maxLen = len(name)
+		}
+	}
+
+	cols := 4
+	for i, name := range toggles {
+		padded := fmt.Sprintf("%-*s", maxLen, name)
+		if cfg.Toggles[name] {
+			fmt.Fprintf(&b, "<span foreground='white'>%s</span>", padded)
+		} else {
+			fmt.Fprintf(&b, "<span foreground='red'>%s</span>", padded)
+		}
+		if (i+1)%cols == 0 || i == len(toggles)-1 {
+			b.WriteString("\n")
+		} else {
+			b.WriteString("  ")
+		}
+	}
+
+	b.WriteString("</span>")
+	return b.String()
 }
