@@ -10,7 +10,6 @@ import (
 	"log"
 	"os"
 	"os/signal"
-	"sort"
 	"strings"
 	"sync"
 	"syscall"
@@ -236,30 +235,29 @@ func buildStateGrid(cfg state.SessionConfig, buttonMap map[string]config.ButtonA
 	var b strings.Builder
 	b.WriteString("<span font_family='monospace' font_size='large'>")
 
-	// All toggles in a grid
-	toggles := config.ToggleNames(buttonMap)
-	sort.Strings(toggles)
-
+	// Find the longest name across the whole grid for uniform padding.
 	maxLen := 0
-	for _, name := range toggles {
-		if len(name) > maxLen {
-			maxLen = len(name)
+	for _, row := range config.GridLayout {
+		for _, name := range row {
+			if len(name) > maxLen {
+				maxLen = len(name)
+			}
 		}
 	}
 
-	cols := 4
-	for i, name := range toggles {
-		padded := fmt.Sprintf("%-*s", maxLen, name)
-		if cfg.Toggles[name] {
-			fmt.Fprintf(&b, "<span foreground='white'>%s</span>", padded)
-		} else {
-			fmt.Fprintf(&b, "<span foreground='red'>%s</span>", padded)
+	for _, row := range config.GridLayout {
+		for j, name := range row {
+			padded := fmt.Sprintf("%-*s", maxLen, name)
+			if cfg.Toggles[name] {
+				fmt.Fprintf(&b, "<span foreground='white'>%s</span>", padded)
+			} else {
+				fmt.Fprintf(&b, "<span foreground='red'>%s</span>", padded)
+			}
+			if j < len(row)-1 {
+				b.WriteString("  ")
+			}
 		}
-		if (i+1)%cols == 0 || i == len(toggles)-1 {
-			b.WriteString("\n")
-		} else {
-			b.WriteString("  ")
-		}
+		b.WriteString("\n")
 	}
 
 	b.WriteString("</span>")
