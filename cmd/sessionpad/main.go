@@ -162,6 +162,20 @@ func handleEvent(
 	}
 }
 
+// syncWithReality re-detects running apps and updates state.
+// Applied is always updated to match detected reality for detectable toggles.
+// Pending is only updated for toggles the user hasn't explicitly changed.
+func syncWithReality(mgr *state.Manager, exec *desktop.Executor) {
+	detected := exec.DetectRunning()
+	for _, name := range exec.DetectableToggles() {
+		realState := detected.Toggles[name]
+		if mgr.Pending.Toggles[name] == mgr.Applied.Toggles[name] {
+			mgr.Pending.Toggles[name] = realState
+		}
+		mgr.Applied.Toggles[name] = realState
+	}
+}
+
 func handlePress(
 	button string,
 	buttonMap map[string]config.ButtonAction,
@@ -179,6 +193,7 @@ func handlePress(
 
 	switch action.Type {
 	case config.Toggle:
+		syncWithReality(mgr, exec)
 		nowOn := mgr.Pending.Toggle(action.Name)
 		log.Printf("pending %s: %v", action.Name, nowOn)
 		notifyPending(mgr, buttonMap, notifier)
@@ -196,6 +211,9 @@ func handleApply(
 	verbose bool,
 ) {
 	log.Println("apply requested")
+
+	// Sync with reality so the diff is accurate.
+	syncWithReality(mgr, exec)
 
 	// Check if anything changed.
 	if mgr.Pending.Equal(mgr.Applied) {

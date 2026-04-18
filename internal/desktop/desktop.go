@@ -72,9 +72,9 @@ func NewExecutor() *Executor {
 				Description: "open log viewer",
 			},
 			"toggle:runescape": {
-				Enable:      []string{"i3-msg", "exec", "flatpak run com.jagex.Launcher"},
-				Disable:     []string{"pkill", "-f", "com.jagex.Launcher"},
-				Detect:      []string{"pgrep", "-f", "com.jagex.Launcher"},
+				Enable:      []string{"i3-msg", "exec", "flatpak run com.adamcake.Bolt"},
+				Disable:     []string{"pkill", "-f", "runelite"},
+				Detect:      []string{"pgrep", "-f", "runelite"},
 				Description: "launch RuneScape",
 			},
 			"toggle:music": {
@@ -178,6 +178,17 @@ func (e *Executor) DetectRunning() state.SessionConfig {
 		}
 	}
 	return cfg
+}
+
+// DetectableToggles returns the names of all toggles that have a Detect command.
+func (e *Executor) DetectableToggles() []string {
+	var names []string
+	for key, cmd := range e.Commands {
+		if cmd.Detect != nil && strings.HasPrefix(key, "toggle:") {
+			names = append(names, strings.TrimPrefix(key, "toggle:"))
+		}
+	}
+	return names
 }
 
 func run(args []string) error {
