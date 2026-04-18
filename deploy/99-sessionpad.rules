@@ -1,0 +1,4 @@
+# When the Raspberry Pi Pico (sessionpad) is plugged in, create a stable
+# symlink and tell systemd to start the service.
+ACTION=="add", SUBSYSTEM=="tty", ATTRS{idVendor}=="2e8a", ATTRS{idProduct}=="000a", \
+    SYMLINK+="sessionpad", TAG+="systemd", ENV{SYSTEMD_WANTS}="sessionpad.service"

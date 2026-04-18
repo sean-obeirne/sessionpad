@@ -1,0 +1,17 @@
+[Unit]
+Description=Sessionpad button board daemon
+BindsTo=dev-sessionpad.device
+After=dev-sessionpad.device
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/sessionpad --port /dev/sessionpad
+User=sean
+Environment=DISPLAY=:0
+Environment=DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/1000/bus
+Environment=XDG_RUNTIME_DIR=/run/user/1000
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=dev-sessionpad.device
