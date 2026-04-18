@@ -148,6 +148,21 @@ func (t *interactionTracker) touch() bool {
 	return active
 }
 
+// reset ends the current interaction session so the next toggle
+// press is treated as a first press (show state, don't toggle).
+func (t *interactionTracker) reset() {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	t.lastTime = time.Time{}
+}
+
+// active returns true if there is an ongoing interaction session.
+func (t *interactionTracker) active() bool {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	return !t.lastTime.IsZero() && time.Since(t.lastTime) < t.timeout
+}
+
 func handleEvent(
 	evt protocol.Event,
 	buttonMap map[string]config.ButtonAction,
@@ -236,6 +251,21 @@ func handlePress(
 
 	case config.Apply:
 		handleApply(mgr, exec, ruleEngine, notifier, verbose)
+		interaction.reset()
+
+	case config.Dismiss:
+		if notifier.Visible() {
+			// Notification on screen — close it, revert, reset.
+			log.Println("dismiss: closing notification")
+			mgr.Pending = mgr.Applied.Clone()
+			notifier.Close()
+			interaction.reset()
+		} else {
+			// No notification on screen — show current state.
+			log.Println("dismiss: showing current state")
+			syncWithReality(mgr, exec)
+			notifyPending(mgr, buttonMap, notifier)
+		}
 	}
 }
 
@@ -306,7 +336,9 @@ func buildStateGrid(cfg state.SessionConfig, buttonMap map[string]config.ButtonA
 	for _, row := range config.GridLayout {
 		for j, name := range row {
 			padded := fmt.Sprintf("%-*s", maxLen, name)
-			if cfg.Toggles[name] {
+			if name == "" {
+				b.WriteString(padded)
+			} else if cfg.Toggles[name] {
 				fmt.Fprintf(&b, "<span foreground='white'>%s</span>", padded)
 			} else {
 				fmt.Fprintf(&b, "<span foreground='red'>%s</span>", padded)

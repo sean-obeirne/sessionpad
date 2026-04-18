@@ -73,8 +73,8 @@ func NewExecutor() *Executor {
 			},
 			"toggle:runescape": {
 				Enable:      []string{"i3-msg", "exec", "flatpak run com.adamcake.Bolt"},
-				Disable:     []string{"pkill", "-f", "runelite"},
-				Detect:      []string{"pgrep", "-f", "runelite"},
+				Disable:     []string{"i3-msg", `[class="Bolt"] kill; [class="RuneLite"] kill`},
+				Detect:      []string{"pgrep", "-f", "runelite|com.adamcake.Bolt"},
 				Description: "launch RuneScape",
 			},
 			"toggle:music": {

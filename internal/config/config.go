@@ -10,6 +10,8 @@ const (
 	Toggle ActionType = iota
 	// Apply triggers config application.
 	Apply
+	// Dismiss cancels the current interaction and closes the notification.
+	Dismiss
 )
 
 // ButtonAction describes the semantic meaning of a single button.
@@ -36,7 +38,7 @@ var DefaultButtonMap = map[string]ButtonAction{
 	"BTN_9":  {Type: Toggle, Name: "browser"},
 	"BTN_10": {Type: Toggle, Name: "extra1"},
 	"BTN_11": {Type: Toggle, Name: "extra2"},
-	"BTN_12": {Type: Toggle, Name: "extra3"},
+	"BTN_12": {Type: Dismiss},
 	"APPLY":  {Type: Apply},
 }
 
@@ -45,7 +47,7 @@ var DefaultButtonMap = map[string]ButtonAction{
 var GridLayout = [][]string{
 	{"embedded", "work", "nvim", "code"},
 	{"music", "runescape", "logs", "tmux"},
-	{"extra3", "extra2", "extra1", "browser"},
+	{"", "extra2", "extra1", "browser"},
 }
 
 // ToggleNames returns the set of toggle feature names from the button map.
