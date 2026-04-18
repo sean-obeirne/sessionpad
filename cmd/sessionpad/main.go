@@ -61,6 +61,10 @@ func main() {
 	// Debouncer: suppress repeated presses of the same button within a window.
 	debounce := newDebouncer(200 * time.Millisecond)
 
+	// Interaction tracker: the first toggle press in a new interaction
+	// just shows current state without toggling.
+	interaction := newInteractionTracker(4 * time.Second)
+
 	log.Println("waiting for Pico events...")
 
 	for {
@@ -89,7 +93,7 @@ func main() {
 				}
 			}
 
-			handleEvent(evt, buttonMap, mgr, exec, ruleEngine, notifier, *verbose)
+			handleEvent(evt, buttonMap, mgr, exec, ruleEngine, notifier, interaction, *verbose)
 		}
 	}
 }
@@ -120,6 +124,30 @@ func (d *debouncer) allow(button string) bool {
 	return true
 }
 
+// interactionTracker determines whether the user is in an active
+// interaction session. The first toggle press after the session
+// expires just shows the current state without toggling.
+type interactionTracker struct {
+	timeout  time.Duration
+	mu       sync.Mutex
+	lastTime time.Time
+}
+
+func newInteractionTracker(timeout time.Duration) *interactionTracker {
+	return &interactionTracker{timeout: timeout}
+}
+
+// touch records a toggle press and returns true if the session
+// was already active (i.e. this is NOT the first press).
+func (t *interactionTracker) touch() bool {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	now := time.Now()
+	active := !t.lastTime.IsZero() && now.Sub(t.lastTime) < t.timeout
+	t.lastTime = now
+	return active
+}
+
 func handleEvent(
 	evt protocol.Event,
 	buttonMap map[string]config.ButtonAction,
@@ -127,6 +155,7 @@ func handleEvent(
 	exec *desktop.Executor,
 	ruleEngine *rules.Engine,
 	notifier notify.Notifier,
+	interaction *interactionTracker,
 	verbose bool,
 ) {
 	switch evt.Type {
@@ -155,7 +184,7 @@ func handleEvent(
 		}
 
 	case protocol.EventPress:
-		handlePress(evt.Button, buttonMap, mgr, exec, ruleEngine, notifier, verbose)
+		handlePress(evt.Button, buttonMap, mgr, exec, ruleEngine, notifier, interaction, verbose)
 
 	case protocol.EventUnknown:
 		log.Printf("unknown event: %q", evt.Raw)
@@ -183,6 +212,7 @@ func handlePress(
 	exec *desktop.Executor,
 	ruleEngine *rules.Engine,
 	notifier notify.Notifier,
+	interaction *interactionTracker,
 	verbose bool,
 ) {
 	action, ok := buttonMap[button]
@@ -194,6 +224,12 @@ func handlePress(
 	switch action.Type {
 	case config.Toggle:
 		syncWithReality(mgr, exec)
+		if !interaction.touch() {
+			// First press in a new interaction — just show current state.
+			log.Printf("first press (%s), showing current state", action.Name)
+			notifyPending(mgr, buttonMap, notifier)
+			return
+		}
 		nowOn := mgr.Pending.Toggle(action.Name)
 		log.Printf("pending %s: %v", action.Name, nowOn)
 		notifyPending(mgr, buttonMap, notifier)
